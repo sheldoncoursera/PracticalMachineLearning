@@ -1,0 +1,88 @@
+Title
+========================================================
+## Practical Machine Learning writeup
+
+# Get data
+The training data set was downloaded from https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv.
+
+The testing data set was download from https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv.
+
+The two data sets were read in using read.csv
+```{r}
+library(caret)
+training <- read.csv("pml-training.csv",header=TRUE,row.names=1)
+testing <- read.csv("pml-testing.csv",header=TRUE,row.names=1)
+```
+
+I examined the 159 variables for near-zero variables.
+```{r}
+nsv <- nearZeroVar(training, saveMetrics=TRUE)
+nsv$nzv
+```
+The result showed that 60 variables were near zero variables. These variables were not considered to be used in building the model because they didn't have variations.
+
+I first selected 3 variables to build a model using random forest algorithm.
+```{r}
+library(randomForest)
+model <- train(classe ~ roll_belt+pitch_belt+yaw_belt+total_accel_belt, method="rf", data=training)
+model
+```
+The result looks like:
+Call:
+ randomForest(x = x, y = y, mtry = param$mtry) 
+               Type of random forest: classification
+                     Number of trees: 500
+No. of variables tried at each split: 2
+
+        OOB estimate of  error rate: 10.44%
+Confusion matrix:
+     A    B    C    D    E class.error
+A 5128  111  190  122   29  0.08100358
+B  156 3352  218   48   23  0.11719779
+C  239  208 2808  151   16  0.17942724
+D  147   35  111 2858   65  0.11131841
+E   73   39   26   42 3427  0.04990297
+
+The error rate seemed to be a bit high with 10.44%. I didn't bother to submit the results becasuse of the high expected error rate.
+```{r}
+predict(model, testing)
+```
+The results are:
+[1] B A B A A E D A A A B A B A E E A B B E
+Levels: A B C D E
+
+Then I selected 3 variables (roll, pitch, and yaw) each for belt, arm, dumbbell, and forearm as the predictors to build a model for classe using the random forest algorithm
+```{r}
+model <- train(classe ~ roll_belt + pitch_belt + yaw_belt + roll_arm + pitch_arm + yaw_arm + roll_dumbbell + pitch_dumbbell + yaw_dumbbell + roll_forearm + pitch_forearm + yaw_forearm, method="rf", data=training)
+model$finalModel
+```
+The results are:
+Call:
+ randomForest(x = x, y = y, mtry = param$mtry) 
+               Type of random forest: classification
+                     Number of trees: 500
+No. of variables tried at each split: 7
+
+        OOB estimate of  error rate: 0.89%
+Confusion matrix:
+     A    B    C    D    E class.error
+A 5567   11    0    1    1 0.002329749
+B   16 3729   45    6    1 0.017908875
+C    0   24 3372   23    3 0.014611338
+D    2    3   11 3198    2 0.005597015
+E    0    6   12    8 3581 0.007208206
+
+Now, the error rate is 0.89%, which is more than 10-fold better than the error rate of the model built with 3 belt variables only.
+
+```{r}
+answers <- predict(model, testing)
+pml_write_files = function(x) {
+  n=length(x)
+  for (i in 1:n) {
+    filename = paste0("problem_id",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,,row.names=FALSE,col.names=FALSE)
+    }
+  }
+pml_write_files(answers)
+```
+I've submitted the results and all 20 cases were predicted correctly.
